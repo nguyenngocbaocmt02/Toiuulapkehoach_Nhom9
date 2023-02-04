@@ -2,9 +2,8 @@ class Instance:
     def __init__(self, file_path):
         # Read data from a file_path and create self.data like the example data in create_example_data() method 
         pass
-     def create_data(self, file_name):
-        """ Example for value of file_name: with N=10 and K=4, file_name = N10_K4 """
-        path = self.file_path + '/' + file_name
+     def create_data(self):
+        path = self.file_path
         self.data = {}
         self.data['depot'] = 0
 
