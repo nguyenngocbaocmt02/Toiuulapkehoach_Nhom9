@@ -17,5 +17,5 @@ ___
         - K
         - Thời gian làm việc tối đa(mặc định là 3600)
         - Độ dài khoảng cách tối đa(mặc định là 5000)
-        - Tên file lưu dữ liệu (nếu không nhập là mặc ) 
+        - Tên file lưu dữ liệu (nếu không nhập là mặc định) 
 
