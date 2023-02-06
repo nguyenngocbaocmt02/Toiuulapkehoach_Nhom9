@@ -9,19 +9,20 @@ class CIGreedy:
         current_customer = [0 for _ in range(num_workers)]
         while unvisited_customers:
             cheapest_customer = None
+            cheapest_worker = None
             cheapest_cost = float("inf")
             for v in range(num_workers):
-                for city in unvisited_customers:
-                    cost = cost_matrix[current_customer[v]][city]
+                for customer in unvisited_customers:
+                    cost = cost_matrix[current_customer[v]][customer]
                     if cost < cheapest_cost:
-                        cheapest_customer = city
+                        cheapest_customer = customer
                         cheapest_cost = cost
                         cheapest_worker = v
             routes[cheapest_worker].append(cheapest_customer)
             current_customer[cheapest_worker] = cheapest_customer
             unvisited_customers.remove(cheapest_customer)
-            for route in routes:
-                route.append(0)
+        for route in routes:
+            route.append(0)
         return routes
 
     def solve(self, instance):
