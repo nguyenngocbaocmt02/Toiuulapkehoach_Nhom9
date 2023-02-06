@@ -1,6 +1,6 @@
 class Greedy:
-    def __init__(self):
-        pass
+    def __init__(self, time_limit):
+        self.time_limit = time_limit
 
     def greedy_mtsp(self, num_workers, num_customers, cost):
         # Initialize the solution with a random starting city for each vehicle
@@ -34,4 +34,4 @@ class Greedy:
         cost = data['distance_matrix']
         num_workers = data['K']
         num_customers = len(cost[0]) - 1
-        return self.greedy_mtsp(num_workers, num_customers, cost)
+        return self.greedy_mtsp(num_workers, num_customers, cost), [], []

@@ -1,10 +1,9 @@
 import numpy as np
-
+import time
 class DPBitmask:
 
-    def __init__(self, sub_dist, dp):
-        self.sub_dist = sub_dist
-        self.dp = dp
+    def __init__(self, time_limit):
+        self.time_limit = time_limit
 
     def tsp(self, mask, pos, number):
         if (mask == (1 << number) - 1):
@@ -27,10 +26,16 @@ class DPBitmask:
         dist = instance.data["distance_matrix"]
         k = instance.data["K"]
         n = len(dist[0]) - 1
-
+        self.sub_dist = []
+        self.dp = []
+        log = []
         cur = k ** n
 
         a = []
+
+        for i in range(n+1):
+            listt = [0 for x in range(n+1)]
+            self.sub_dist.append(listt)
 
         ans =  1e9
         for i in range(cur):
@@ -49,7 +54,7 @@ class DPBitmask:
 
             for j in range(1,n+1):
                 for u in range(n+1):
-                    list = [-1 for x in range(n)]
+                    list = [-1 for x in range(n+1)]
                     self.dp.append(list)
 
                 num = len(a[j])
@@ -64,14 +69,5 @@ class DPBitmask:
                 if (sub_ans > ans): break
             
             ans = min(sub_ans,ans)
-
-        return ans
-    
-
-
-
-
-    
-    
-
-
+            log.append(ans)
+        return ans,log

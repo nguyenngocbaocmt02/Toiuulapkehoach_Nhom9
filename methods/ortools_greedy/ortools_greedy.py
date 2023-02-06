@@ -1,11 +1,11 @@
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp 
 
-class OrtoolsMTSP:
-    def __init__(self):
-        pass
+class OrtoolsGreedy:
+    def __init__(self, time_limit):
+        self.time_limit = time_limit
 
-    def solve(self, instance, time_limit=30):
+    def solve(self, instance):
         data = instance.data
         manager = pywrapcp.RoutingIndexManager(len(data['distance_matrix']),
                                             data['K'], data['depot'])
@@ -32,10 +32,10 @@ class OrtoolsMTSP:
         # Setting first solution heuristic.
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
+            routing_enums_pb2.FirstSolutionStrategy.GLOBAL_CHEAPEST_ARC)
         #search_parameters.local_search_metaheuristic = (
         #    routing_enums_pb2.LocalSearchMetaheuristic.TABU_SEARCH)
-        search_parameters.time_limit.seconds = time_limit    
+        search_parameters.time_limit.seconds = 60    
         # Solve the problem.
         solution = routing.SolveWithParameters(search_parameters)
 
@@ -49,4 +49,4 @@ class OrtoolsMTSP:
                     route.append(manager.IndexToNode(index))
                 routes.append(route)
             return routes
-        return get_routes(solution, routing, manager)
+        return get_routes(solution, routing, manager), [], []

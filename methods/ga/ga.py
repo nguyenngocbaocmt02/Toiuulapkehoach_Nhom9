@@ -2,7 +2,7 @@ import numpy as np
 import random
 import copy
 import time
-
+import sys
 class GA:
     def __init__(self, pop_size, num_generations, mutation_probability, local_search_prob, keep_rate, time_limit):
         self.pop_size = pop_size
@@ -120,12 +120,13 @@ class GA:
             if tmp < min_cost:
                 min_cost = tmp
                 min_stt = stt
-
+        
         length = max_cost
-        new_routes = self.decode(individual, len(distance_matrix))
-        new_routes[max_stt], new_routes[min_stt], new_length = self.optimize_routes(distance_matrix, new_routes[max_stt], new_routes[min_stt])
-        if new_length < length:
-            return self.encode(new_routes)     
+        if min_stt != max_stt:
+            new_routes = self.decode(individual, len(distance_matrix))
+            new_routes[max_stt], new_routes[min_stt], new_length = self.optimize_routes(distance_matrix, new_routes[max_stt], new_routes[min_stt])
+            if new_length < length:
+                return self.encode(new_routes)     
                
         for i in range(len(routes)):
             if i == max_stt:
@@ -138,12 +139,12 @@ class GA:
 
     def optimize_routes(self, distance_matrix, route1, route2):
         max_length = max(self.cost_route(distance_matrix, route1), self.cost_route(distance_matrix, route2))
-        res_route1 = copy.deepcopy(route1[:])
-        res_route2 = copy.deepcopy(route2[:])
+        res_route1 = route1
+        res_route2 = route2
         for i in range(1, len(route1)-1):
             for j in range(1, len(route2)-1):
-                new_route1 = route1[:]
-                new_route2 = route2[:]
+                new_route1 = copy.deepcopy(route1)
+                new_route2 = copy.deepcopy(route2)
                 new_route2.insert(j, new_route1.pop(i))
                 new_length = max(self.cost_route(distance_matrix, new_route1), self.cost_route(distance_matrix, new_route2))
                 if new_length < max_length:
@@ -159,7 +160,8 @@ class GA:
         population = self.generate_population(len(distance_matrix) + K - 2)
         best_individual = None
         best_fitness = float('inf')
-        log = []
+        log1 = []
+        log2 = [1e9 for i in range(10)]
         for generation in range(self.num_generations):
             fitness_scores = [self.fitness_function_individual(distance_matrix, individual) for individual in population]
             population_with_fitness = list(zip(population, fitness_scores))
@@ -169,8 +171,16 @@ class GA:
             if  tmp < best_fitness:
                 best_individual = population[0]
                 best_fitness = tmp
-            log.append(best_fitness)
+            if generation % 10 == 0:
+                log1.append(best_fitness)
+            for i in range(len(log2)):
+                if log2[i] != 1e9:
+                    continue
+                else:
+                    if ((time.time() - t_begin) > self.time_limit / 10.0 * i):
+                        log2[i] = best_fitness
             if time.time() - t_begin >= self.time_limit:
+                log2[-1] = best_fitness
                 break
             next_population = [population[i] for i in range(int(self.pop_size * self.keep_rate))]
             while len(next_population) < self.pop_size:
@@ -182,5 +192,4 @@ class GA:
                     next_population[i] = self.local_search_2(distance_matrix, next_population[i])
                     next_population[i] = self.two_opt(distance_matrix, next_population[i])
             population = next_population
-        return self.decode(best_individual, len(distance_matrix)), log
-
+        return self.decode(best_individual, len(distance_matrix)), log1, log2

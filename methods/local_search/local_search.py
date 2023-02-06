@@ -122,10 +122,11 @@ class LocalSearch:
                 min_stt = stt
 
         length = max_cost
-        new_routes = self.decode(individual, len(distance_matrix))
-        new_routes[max_stt], new_routes[min_stt], new_length = self.optimize_routes(distance_matrix, new_routes[max_stt], new_routes[min_stt])
-        if new_length < length:
-            return self.encode(new_routes)     
+        if min_stt != max_stt:
+            new_routes = self.decode(individual, len(distance_matrix))
+            new_routes[max_stt], new_routes[min_stt], new_length = self.optimize_routes(distance_matrix, new_routes[max_stt], new_routes[min_stt])
+            if new_length < length:
+                return self.encode(new_routes)     
                
         for i in range(len(routes)):
             if i == max_stt:
@@ -159,7 +160,8 @@ class LocalSearch:
         population = self.generate_population(len(distance_matrix) + K - 2)
         best_individual = None
         best_fitness = float('inf')
-        log = []
+        log1 = []
+        log2 = [1e9 for i in range(10)]
         for generation in range(self.num_generations):
             fitness_scores = [self.fitness_function_individual(distance_matrix, individual) for individual in population]
             population_with_fitness = list(zip(population, fitness_scores))
@@ -169,7 +171,19 @@ class LocalSearch:
             if  tmp < best_fitness:
                 best_individual = population[0]
                 best_fitness = tmp
-            log.append(best_fitness)
+            if generation % 10 == 0:
+                log1.append(best_fitness)
+            for i in range(len(log2)):
+                if log2[i] != 1e9:
+                    continue
+                else:
+                    if ((time.time() - t_begin) > self.time_limit / 10.0 * i):
+                        log2[i] = best_fitness
+            if time.time() - t_begin >= self.time_limit:
+                log2[-1] = best_fitness
+                break
+            if generation % 10 == 0:
+                log1.append(best_fitness)
             if time.time() - t_begin >= self.time_limit:
                 break
             next_population = [population[i] for i in range(int(self.pop_size * self.keep_rate))]
@@ -182,5 +196,5 @@ class LocalSearch:
                     next_population[i] = self.local_search_2(distance_matrix, next_population[i])
                     next_population[i] = self.two_opt(distance_matrix, next_population[i])
             population = next_population
-        return self.decode(best_individual, len(distance_matrix)), log
+        return self.decode(best_individual, len(distance_matrix)), log1, log2
 

@@ -87,10 +87,12 @@ class TabuSearch:
                 min_stt = stt
 
         length = max_cost
-        new_routes = self.decode(individual, len(distance_matrix))
-        new_routes[max_stt], new_routes[min_stt], new_length = self.optimize_routes(distance_matrix, new_routes[max_stt], new_routes[min_stt])
-        if new_length < length:
-            return self.encode(new_routes)     
+        
+        if min_stt != max_stt:
+            new_routes = self.decode(individual, len(distance_matrix))
+            new_routes[max_stt], new_routes[min_stt], new_length = self.optimize_routes(distance_matrix, new_routes[max_stt], new_routes[min_stt])
+            if new_length < length:
+                return self.encode(new_routes)     
                
         for i in range(len(routes)):
             if i == max_stt:
@@ -129,8 +131,21 @@ class TabuSearch:
         tabu_list = []
         best_individual = current_individual
         best_cost = self.fitness_function_individual(current_individual, distance_matrix)
-        log = []
+        log1 = []
+        log2 = [1e9 for i in range(10)]
         for iteration in range(self.max_iterations):
+            if iteration % 10 == 0:
+                log1.append(best_cost)
+            for i in range(len(log2)):
+                if log2[i] != 1e9:
+                    continue
+                else:
+                    if (time.time() - begin_t>= self.time_limit / 10.0 * i):
+                        log2[i] = best_cost
+            if time.time() - begin_t >= self.time_limit:
+                log2[-1] = best_cost
+                break 
+
             neighborhood = self.generate_neighborhood(current_individual, distance_matrix, n_neighbors)
             for i in range(len(neighborhood)):
                 if random.uniform(0, 1) < self.local_search_prob:
@@ -153,8 +168,6 @@ class TabuSearch:
                 tabu_list.pop(0)
             tabu_list.append(best_neighbor)
             current_individual = best_neighbor
-            if time.time() - begin_t >= self.time_limit:
-                break 
-            log.append(best_cost)
-        return self.decode(best_individual, len(distance_matrix)), log
+
+        return self.decode(best_individual, len(distance_matrix)), log1, log2
 
