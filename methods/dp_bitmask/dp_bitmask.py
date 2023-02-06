@@ -1,6 +1,6 @@
 import numpy as np
 
-class Brute_force:
+class DPBitmask:
 
     def __init__(self, sub_dist, dp):
         self.sub_dist = sub_dist
