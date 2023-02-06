@@ -1,68 +1,102 @@
-from ortools.constraint_solver import routing_enums_pb2
-from ortools.constraint_solver import pywrapcp
-
+from ortools.linear_solver import pywraplp
 class CP:
-    def __init__(self):
-        pass
-
-    def print_solution(self, manager, routing, solution):
-        #print(f'Objective: {solution.ObjectiveValue()}')
-        max_route_distance = 0
-        for vehicle_id in range(self.K):
-            index = routing.Start(vehicle_id)
-            plan_output = 'Route for vehicle {}:\n'.format(vehicle_id)
-            route_distance = 0
-            while not routing.IsEnd(index):
-                plan_output += ' {} -> '.format(manager.IndexToNode(index))
-                previous_index = index
-                index = solution.Value(routing.NextVar(index))
-                route_distance += routing.GetArcCostForVehicle(
-                    previous_index, index, vehicle_id)
-            #plan_output += '{}\n'.format(manager.IndexToNode(index))
-            #plan_output += 'Distance of the route: {}m\n'.format(route_distance)
-            #print(plan_output)
-            max_route_distance = max(route_distance, max_route_distance)
-        return max_route_distance
-
-
+    def __init__(self, time_limit):
+        self.time_limit = time_limit
 
     def solve(self, instance):
-        self.distance_matrix = instance.data["distance_matrix"]
-        self.K = instance.data["K"]
+        K = instance.data['K']
+        distance = instance.data['distance_matrix']
+        n = len(distance)
+        L = n - K
+        M = 9999
+        solver = pywraplp.Solver.CreateSolver('SCIP')
+        
+    # Decision Variables
 
-        manager = pywrapcp.RoutingIndexManager(len(self.distance_matrix),K,0),
+        u = {}
+        for i in range(1,n):
+            u[i] = solver.IntVar(1, L, "u[%i]" % i)
+    
+        x = {}
+        for i in range(n):
+            for j in range(n):
+                x[i, j] = solver.IntVar(0, 1, "x[%i, %i]" % (i, j))
 
-        routing = pywrapcp.RoutingModel(manager)
+        s = {}
+        for i in range(n):
+            s[i] = solver.IntVar(1, M, "u[%i]" % i)
+        
+        solver.Minimize(solver.Sum([distance[i][j] * x[i, j] for j in range(n) for i in range(n)]) + s[0])
+        
+    # Constraints
 
-        def distance_callback(from_index, to_index):
-            from_node = manager.IndexToNode(from_index)
-            to_node = manager.IndexToNode(to_index)
-            return self.distance_matrix[from_node][to_node]
 
-        transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+        # (1) and (2) 
 
-        routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+        solver.Add(solver.Sum(x[0, i] for i in range(1, n)) == K)
+        solver.Add(solver.Sum(x[i, 0] for i in range(1, n)) == K)
+    
+        # (3) and (4)
 
-        dimension_name = 'Distance'
-        routing.AddDimension(
-            transit_callback_index,
-            0,  # no slack
-            3000,  # vehicle maximum travel distance
-            True,  # start cumul to zero
-            dimension_name)
-        distance_dimension = routing.GetDimensionOrDie(dimension_name)
-        distance_dimension.SetGlobalSpanCostCoefficient(100)
+        for i in range(1,n):
+            solver.Add(solver.Sum(x[i, j] for j in range(n) if i!=j) == 1)
+    
+        for i in range(1,n):
+            solver.Add(solver.Sum(x[j, i] for j in range(n) if i!=j) == 1)
 
-        # Setting first solution heuristic.
-        search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-        search_parameters.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
+        # (4) and (5) prevent sub tours.
 
-        # Solve the problem.
-        solution = routing.SolveWithParameters(search_parameters)
+        for i in range(1, n):
+            for j in range(1, n):
+                if i != j:
+                    solver.Add(u[i] - u[j] + L * x[i, j] <= L - 1)
+        # (6)
+        for i in range(1, n):
+            for j in range(n):
+                if i != j:
+                    solver.Add(s[j] - s[i] >= distance[i][j] - M * (1 - x[i, j]))
+        # (7)
+        for j in range(1, n):
+            solver.Add(s[j] >= distance[0][j] * x[0, j])
+        # Solve()
+        solver.set_time_limit(self.time_limit * 1000)
+        status = solver.Solve()
 
-        # Print solution on console.
-        if solution:
-            return self.print_solution(self, manager, routing, solution)
+        if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
+            s  = []
+            for i in range(n):
+                tmp = []
+                for j in range(n):
+                    tmp.append(x[i, j].solution_value())
+                s.append(tmp)
+            #print("visiting rank:", end= " ")
+            #for i in range(1,n):
+            #    print(u[i].solution_value(), end= "   ")
+            #print("")
+            return self.result(s, distance), [], []
+                
         else:
-            print('No solution found !')
+            return None, [], []
+            
+    def result(self, x, d):
+        n = len(x)
+        results = []
+
+        # for i in range(n):
+        #     for j in range(n):
+        #         print(x[i][j], end= "   ")
+        #     print("")
+
+        def found_column(i, sum):
+            for j in range(n):
+                if x[i][j] == 1:
+                    if j == 0 : return sum + d[i][j]
+                    else: return found_column(j, sum + d[i][j])
+
+        for i in range(n):
+            if x[0][i] == 1:
+                sum_tmp = d[0][i]
+                results.append(found_column(i, sum_tmp))
+
+        return max(results)
+        

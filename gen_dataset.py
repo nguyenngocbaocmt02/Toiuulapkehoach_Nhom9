@@ -38,8 +38,8 @@ def create_input(N, K, limited_time=100, limited_dis=100):
             row_str = ' '.join(str(x) for x in row)
             file.write(row_str + '\n')
 
-Ns = [5, 10, 15, 20, 25, 50, 100, 150, 200, 300, 400, 500]
-Ks = [int(y/20)+1 if y>20 else 2 for y in Ns]
+Ns = [5, 10, 20, 50, 100, 200, 300, 400, 500] + [6, 7, 8, 9]
+Ks = [int(y/20)+1 if y>20 else 2 for y in Ns] + [2, 2, 2, 2]
 for i in range(len(Ns)):
     create_input(Ns[i], Ks[i])
 

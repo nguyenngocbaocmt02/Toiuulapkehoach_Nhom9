@@ -7,9 +7,12 @@ from methods.ga.ga import GA
 from methods.tabu_search.tabu_search import TabuSearch
 from methods.greedy.default_greedy import Greedy
 from methods.local_search.local_search import LocalSearch
+from methods.brute_force.brute_force import BruteForce
+from methods.ortools_lp.ortools_lp import LP
+from methods.ortools_cp.ortools_cp import CP
 import csv
 
-def return_model(name, instance):
+def return_model(name, instance, time_limit):
     if method == "ga_local_search":
         model = model = GA(pop_size=200, num_generations=1000, mutation_probability=0.2, local_search_prob=0.4, keep_rate=0.1, time_limit=time_limit)
     if method == "ga":
@@ -24,19 +27,19 @@ def return_model(name, instance):
         model = OrtoolsGreedy(time_limit=time_limit)
     if method == "greedy":
         model = Greedy(time_limit=time_limit)
-    if method == "ilp":
-        pass
+    if method == "lp":
+        model = LP(time_limit)
     if method == "cp":
-        pass
-    if method == "dp_bitmask":
-        pass 
+        model = CP(time_limit)
+    if method == "brute_force":
+        model = BruteForce(time_limit)
     return model
 
 if __name__ == "__main__":
     method = sys.argv[1]
     dataset_folder_path = sys.argv[2]
     result_folder_path = sys.argv[3]
-    time_limit = 30
+    time_limit = 15
     model = None
     
     result = []
@@ -50,13 +53,17 @@ if __name__ == "__main__":
         output_log_file2 = os.path.join(result_folder_path, method, "log2.csv")
         
         instance = Instance(input_file)
-        model = return_model(method, instance)
+        model = return_model(method, instance, time_limit)
         routes, l1, l2 = model.solve(instance)
         ttt = 1e9
         for i in range(len(l2)):
             ttt = min(ttt, l2[i])
             l2[i] = ttt
-        res = instance.obj_func(routes)[1]
+        if type(routes) == "list":
+            res = instance.obj_func(routes)[1]
+        else:
+            res = routes
+
         files.append(file)
         result.append(res)
         log1.append(l1)
