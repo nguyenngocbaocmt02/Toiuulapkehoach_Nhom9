@@ -1,12 +1,10 @@
 class Instance:
     def __init__(self, file_path):
         # Read data from a file_path and create self.data like the example data in create_example_data() method 
-        pass
-     def create_data(self):
+        self.file_path = file_path
         path = self.file_path
         self.data = {}
         self.data['depot'] = 0
-
         with open(path, 'r') as file:
             lines = file.readlines()
             self.data['N'], self.data['K'] = [int(x) for x in lines[0].split()]
@@ -19,9 +17,7 @@ class Instance:
             for i in range(self.data['N']+1):
                 for j in range(self.data['N']+1):
                     if i != j:
-                        self.data['distance_matrix'][i][j] += self.data['working_time'][j]
-                        
-        return self.data
+                        self.data['distance_matrix'][i][j] += self.data['working_time'][j]             
     
     def create_example_data(self):
         """Stores the data for the problem, same as in ortools"""

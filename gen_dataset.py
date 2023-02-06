@@ -21,8 +21,9 @@ def generate_random_distance_symmetric_matrix(k, limited_dis):
 
 
 def create_input(N, K, limited_time=100, limited_dis=100):
+    random.seed(0)
     filename = 'N' + str(N) + '_' + 'K' + str(K)
-    with open(filename, 'w') as file:
+    with open(os.path.join("data", filename), 'w') as file:
         matrix = generate_random_distance_symmetric_matrix(N + 1, limited_dis)
         d = generate_random_working_time(N, limited_time)
         # Write N, K in 1st line
@@ -37,7 +38,7 @@ def create_input(N, K, limited_time=100, limited_dis=100):
             row_str = ' '.join(str(x) for x in row)
             file.write(row_str + '\n')
 
-Ns = [x for x in range(5, 205, 5)]
+Ns = [5, 10, 15, 20, 25, 50, 100, 150, 200, 300, 400, 500]
 Ks = [int(y/20)+1 if y>20 else 2 for y in Ns]
 for i in range(len(Ns)):
     create_input(Ns[i], Ks[i])

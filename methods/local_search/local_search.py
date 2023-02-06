@@ -1,17 +1,17 @@
-import random
 import numpy as np
+import random
 import copy
 import time
 
-class TabuSearch:
-    def __init__(self, tabu_list_length, n_neighbors, intensification_factor, local_search_prob, max_iterations, time_limit):
-        self.tabu_list_length = tabu_list_length
-        self.max_iterations = max_iterations
-        self.n_neighbors = n_neighbors
-        self.intensification_factor = intensification_factor
-        self.local_search_prob = local_search_prob
+class LocalSearch:
+    def __init__(self, pop_size, num_generations, time_limit):
+        self.pop_size = pop_size
+        self.num_generations = num_generations
+        self.mutation_probability = 0.0
+        self.keep_rate = 1.0
+        self.local_search_prob = 1.0
         self.time_limit = time_limit
-        
+
     def decode(self, individual, N):
         routes = []
         tmp = []
@@ -42,22 +42,57 @@ class TabuSearch:
             tmp += distance_matrix[route[i]][route[i+1]]
         return tmp
 
-    def fitness_function_individual(self, individual, distance_matrix):
+    def fitness_function_individual(self, distance_matrix, individual):
         routes = self.decode(individual, len(distance_matrix))
         fitness = -float("inf")
         for route in routes:
             fitness = max(self.cost_route(distance_matrix, route), fitness)
         return fitness
 
-    def generate_neighborhood(self, current_individual, distance_matrix, n_neighbors):
-        neighborhood = []
-        for i in range(len(current_individual) - 1):
-            for j in range(i + 2, len(current_individual) - 1):
-                new_individual = current_individual[:]
-                new_individual[i + 1:j + 1] = reversed(new_individual[i + 1:j + 1])
-                neighborhood.append(new_individual)      
-        random.shuffle(neighborhood)    
-        return neighborhood[:n_neighbors]
+    def mutate(self, individual):
+        if random.uniform(0, 1) < self.mutation_probability:
+            start = random.randint(0, len(individual) - 1)
+            end = random.randint(0, len(individual) - 1)
+            new_individual = np.copy(individual)
+            new_individual[start], new_individual[end] = new_individual[end], new_individual[start]
+            return new_individual
+        else:
+            return individual
+
+    def ox_crossover(self, individual1, individual2):
+        # Select two random cut points for the OX crossover
+        cut1 = random.randint(0, len(individual1) - 1)
+        cut2 = random.randint(0, len(individual1) - 1)
+        # Ensure that cut1 is smaller than cut2
+        if cut1 > cut2:
+            cut1, cut2 = cut2, cut1
+        # Create the offspring using OX
+        offspring = [-1] * len(individual1)
+        offspring[cut1:cut2+1] = individual1[cut1:cut2+1]        
+        pos = (cut2 + 1) % len(individual1)
+        for i in range(len(individual1)):
+            if individual2[i] not in offspring:
+                while offspring[pos] != -1:
+                    pos = (pos + 1) % len(individual1)
+                offspring[pos] = individual2[i]
+        
+        return offspring
+
+    def generate_population(self, gen_len):
+        population = []
+        for i in range(self.pop_size):
+            population.append(np.random.permutation([_ for _ in range(1, gen_len+1)]))
+        return population
+
+    def select_parents(self, population, fitness_scores):
+        parent1 = random.choices(population, k=1)[0]
+        parent2 = random.choices(population, k=1)[0]
+        return parent1, parent2
+
+    def generate_offspring(self, individual1, individual2):
+        child = self.ox_crossover(individual1, individual2)
+        child = self.mutate(child)
+        return child
 
     def two_opt(self, distance_matrix, individual):
         routes = self.decode(individual, len(distance_matrix))
@@ -120,41 +155,32 @@ class TabuSearch:
     def solve(self, instance):
         distance_matrix = instance.data["distance_matrix"]
         K = instance.data["K"]
-        individual_len = len(distance_matrix)
-        gen_len = len(distance_matrix) + K - 2
-        n_neighbors = np.copy(self.n_neighbors)
-        begin_t = time.time()
-        current_individual = [_ for _ in range(1, gen_len + 1)]
-        random.shuffle(current_individual)
-        tabu_list = []
-        best_individual = current_individual
-        best_cost = self.fitness_function_individual(current_individual, distance_matrix)
+        t_begin = time.time()
+        population = self.generate_population(len(distance_matrix) + K - 2)
+        best_individual = None
+        best_fitness = float('inf')
         log = []
-        for iteration in range(self.max_iterations):
-            neighborhood = self.generate_neighborhood(current_individual, distance_matrix, n_neighbors)
-            for i in range(len(neighborhood)):
+        for generation in range(self.num_generations):
+            fitness_scores = [self.fitness_function_individual(distance_matrix, individual) for individual in population]
+            population_with_fitness = list(zip(population, fitness_scores))
+            population_with_fitness.sort(key=lambda x: x[1], reverse=False)
+            population = [route for route, fitness in population_with_fitness]
+            tmp = self.fitness_function_individual(distance_matrix, population[0])
+            if  tmp < best_fitness:
+                best_individual = population[0]
+                best_fitness = tmp
+            log.append(best_fitness)
+            if time.time() - t_begin >= self.time_limit:
+                break
+            next_population = [population[i] for i in range(int(self.pop_size * self.keep_rate))]
+            while len(next_population) < self.pop_size:
+                parent1, parent2 = self.select_parents(population, fitness_scores)
+                child = self.generate_offspring(parent1, parent2)
+                next_population.append(child)
+            for i in range(len(next_population)):
                 if random.uniform(0, 1) < self.local_search_prob:
-                    neighborhood[i] = self.local_search_2(distance_matrix, neighborhood[i])
-                    neighborhood[i] = self.two_opt(distance_matrix, neighborhood[i])
-            best_neighbor = neighborhood[0]
-            best_neighbor_cost = self.fitness_function_individual(best_neighbor, distance_matrix)
-            for neighbor in neighborhood:
-                cost = self.fitness_function_individual(neighbor, distance_matrix)
-                if cost < best_neighbor_cost and neighbor not in tabu_list:
-                    best_neighbor = neighbor
-                    best_neighbor_cost = cost
-            if best_neighbor_cost < best_cost:
-                best_individual = best_neighbor
-                best_cost = best_neighbor_cost
-                n_neighbors = int(n_neighbors * self.intensification_factor)
-            else:
-                n_neighbors = int(n_neighbors / self.intensification_factor)
-            if len(tabu_list) == self.tabu_list_length:
-                tabu_list.pop(0)
-            tabu_list.append(best_neighbor)
-            current_individual = best_neighbor
-            if time.time() - begin_t >= self.time_limit:
-                break 
-            log.append(best_cost)
+                    next_population[i] = self.local_search_2(distance_matrix, next_population[i])
+                    next_population[i] = self.two_opt(distance_matrix, next_population[i])
+            population = next_population
         return self.decode(best_individual, len(distance_matrix)), log
 
